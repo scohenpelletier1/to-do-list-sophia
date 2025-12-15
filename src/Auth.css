@@ -101,6 +101,7 @@ h1 {
   padding: 12px 14px;
   font-size: 15px;
   background: #ffffff;
+  color: #4b5563;
   transition: border 150ms ease, box-shadow 150ms ease;
 }
 

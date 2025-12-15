@@ -10,8 +10,9 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
+import { signOut } from 'firebase/auth'
 import './App.css'
-import { db } from './firebase'
+import { auth, db } from './firebase'
 
 const COLUMNS = [
   { id: 'todo', label: 'To Do', tone: 'royal' },
@@ -19,15 +20,22 @@ const COLUMNS = [
   { id: 'done', label: 'Done', tone: 'mint' },
 ]
 
-function App() {
+function App({ user }) {
   const [tasks, setTasks] = useState([])
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [draggingId, setDraggingId] = useState(null)
   const [activeColumn, setActiveColumn] = useState(null)
-  const [theme, setTheme] = useState('dark')
-  const userId = import.meta.env.VITE_USER_ID || 'User 1'
+  const [theme, setTheme] = useState(() => {
+    // Check localStorage for saved preference, default to 'light'
+    return localStorage.getItem('theme') || 'light'
+  })
+  const userId = user?.uid || 'anonymous'
   const userCollection = 'to-do-list'
+
+  const handleSignOut = async () => {
+    await signOut(auth)
+  }
   const tasksRef = useMemo(
     () => collection(db, userCollection, userId, 'tasks'),
     [userCollection, userId],
@@ -99,6 +107,8 @@ function App() {
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
+    // Save preference to localStorage
+    localStorage.setItem('theme', theme)
   }, [theme])
 
   useEffect(() => {
@@ -136,6 +146,18 @@ function App() {
     <main className="app">
       <header className="hero">
         <div className="hero__top">
+          <div className="user-bar">
+            <span className="user-greeting">
+              Welcome, {user?.displayName || user?.email || 'User'}
+            </span>
+            <button
+              type="button"
+              className="sign-out-btn"
+              onClick={handleSignOut}
+            >
+              Sign out
+            </button>
+          </div>
           <p className="eyebrow">Plan. Drag. Done.</p>
           <h1>Task bins with simple drag & drop</h1>
           <p className="lede">

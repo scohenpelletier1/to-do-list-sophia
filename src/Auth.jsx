@@ -108,7 +108,7 @@ function Auth() {
           <div className="chip">{mode === 'signup' ? 'Sign up' : 'Log in'}</div>
           <button className="link-btn" onClick={switchMode} type="button">
             {mode === 'signup'
-              ? 'Name'
+              ? 'Already have an account? Log in'
               : "Need an account? Sign up"}
           </button>
         </div>
