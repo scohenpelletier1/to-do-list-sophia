@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore'
 import './App.css'
+import { db } from './firebase'
 
 const COLUMNS = [
   { id: 'todo', label: 'To Do', tone: 'royal' },
@@ -8,31 +20,18 @@ const COLUMNS = [
 ]
 
 function App() {
-  const [tasks, setTasks] = useState([
-    {
-      id: 't-1',
-      title: 'Brainstorm project ideas',
-      note: 'Pick one small win to ship this week.',
-      status: 'todo',
-    },
-    {
-      id: 't-2',
-      title: 'Wireframe the UI',
-      note: 'Sketch the core flow and states.',
-      status: 'doing',
-    },
-    {
-      id: 't-3',
-      title: 'Review scope with team',
-      note: 'Confirm priorities and deadlines.',
-      status: 'done',
-    },
-  ])
+  const [tasks, setTasks] = useState([])
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
   const [draggingId, setDraggingId] = useState(null)
   const [activeColumn, setActiveColumn] = useState(null)
   const [theme, setTheme] = useState('dark')
+  const userId = import.meta.env.VITE_USER_ID || 'User 1'
+  const userCollection = 'to-do-list'
+  const tasksRef = useMemo(
+    () => collection(db, userCollection, userId, 'tasks'),
+    [userCollection, userId],
+  )
 
   const tasksByColumn = useMemo(() => {
     return tasks.reduce((groups, task) => {
@@ -47,21 +46,23 @@ function App() {
     setNote('')
   }
 
-  const handleAdd = (event) => {
+  const handleAdd = async (event) => {
     event.preventDefault()
     if (!title.trim()) return
 
-    const id = `t-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`
-    setTasks((prev) => [
-      {
-        id,
-        title: title.trim(),
-        note: note.trim(),
-        status: 'todo',
-      },
-      ...prev,
-    ])
+    try {
+    await addDoc(tasksRef, {
+      title: title.trim(),
+      note: note.trim(),
+      status: 'todo',
+      userId,
+      createdAt: serverTimestamp(),
+    })
     resetForm()
+    } catch (error) {
+      console.error('Error adding task', error)
+      alert('Could not add task. Check console for details.')
+    }
   }
 
   const handleDrop = (event, status) => {
@@ -69,16 +70,16 @@ function App() {
     const taskId = event.dataTransfer.getData('text/plain')
     if (!taskId) return
 
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status,
-            }
-          : task,
-      ),
-    )
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || task.status === status) {
+      setDraggingId(null)
+      setActiveColumn(null)
+      return
+    }
+
+    updateDoc(doc(db, 'users', userId, 'tasks', taskId), {
+      status,
+    }).catch((error) => console.error('Error updating task status', error))
     setDraggingId(null)
     setActiveColumn(null)
   }
@@ -99,6 +100,37 @@ function App() {
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
   }, [theme])
+
+  useEffect(() => {
+    // Ensure the parent user document exists so the `tasks` subcollection
+    // is visible in the Firestore console (otherwise it can look empty).
+    setDoc(
+      doc(db, userCollection, userId),
+      { userId, updatedAt: serverTimestamp() },
+      { merge: true },
+    ).catch((error) => {
+      console.error('Error creating user record', error)
+    })
+  }, [userCollection, userId])
+
+  useEffect(() => {
+    const q = query(tasksRef, orderBy('createdAt', 'desc'))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const nextTasks = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data()
+        return {
+          id: docSnap.id,
+          title: data.title || '',
+          note: data.note || '',
+          status: data.status || 'todo',
+          createdAt: data.createdAt,
+        }
+      })
+      setTasks(nextTasks)
+    })
+
+    return unsubscribe
+  }, [tasksRef])
 
   return (
     <main className="app">
