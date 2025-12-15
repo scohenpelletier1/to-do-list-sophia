@@ -1,69 +1,73 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light;
-  color: #1e293b;
-  background-color: #e2e8f0;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Dark theme (default) */
+  --bg: #0b1021;
+  --panel: #0f172a;
+  --panel-strong: #101a2f;
+  --border: #1e2b45;
+  --border-strong: #1c2741;
+  --accent: #6c8bff;
+  --text: #e9edff;
+  --text-muted: rgba(233, 239, 255, 0.75);
+  --text-subtle: #c9d3ef;
+  --chip: #1f2a45;
+  --card: #0c1326;
+  --dropzone: #121b31;
+  --dropzone-active: #182445;
+  --shadow: rgba(0, 0, 0, 0.25);
+  --shadow-strong: rgba(0, 0, 0, 0.28);
+  --control-bg: rgba(255, 255, 255, 0.03);
+  --control-border: #1f2a45;
+  --control-text: #f8fbff;
 }
 
-a {
-  font-weight: 500;
-  color: #6366f1;
-  text-decoration: inherit;
+body.theme-light {
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --border: #dde5f5;
+  --border-strong: #d1dbef;
+  --accent: #5ca8ff;
+  --text: #0b1526;
+  --text-muted: #405274;
+  --text-subtle: #5b6c88;
+  --chip: #e8edfb;
+  --card: #ffffff;
+  --dropzone: #f4f6fb;
+  --dropzone-active: #e8efff;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --shadow-strong: rgba(0, 0, 0, 0.1);
+  --control-bg: #ffffff;
+  --control-border: #dbe3f4;
+  --control-text: #0b1526;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 320px;
   min-height: 100vh;
-  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-#root {
-  width: 100%;
-  display: flex;
-  justify-content: center;
+a {
+  color: inherit;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #f1f5f9;
-  color: #334155;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #818cf8;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto #a5b4fc;
-}
-
-a:hover {
-  color: #818cf8;
-}
-
-button {
-  background-color: #f1f5f9;
+p {
+  margin: 0;
 }
