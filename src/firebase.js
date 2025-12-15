@@ -1,6 +1,10 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
+
+// Initialize Firebase once and export typed helpers for Auth and Firestore.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,4 +18,9 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
 const db = getFirestore(app)
 
 export { db }
+
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+
+export default app
 
