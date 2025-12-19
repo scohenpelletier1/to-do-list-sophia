@@ -94,12 +94,12 @@ function Auth() {
   return (
     <div className="page">
       <header>
-        <p className="eyebrow">Firebase Auth + Firestore</p>
+        <p className="eyebrow">To-Do List App</p>
         <h1>{welcomeText}</h1>
         <p className="subhead">
           {user
             ? 'You are authenticated. Your profile is saved in the "users" collection.'
-            : 'Sign up or log in with email and password. New accounts are stored in Firestore.'}
+            : 'Sign up or log in with email and password.'}
         </p>
       </header>
 
