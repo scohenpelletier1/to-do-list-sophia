@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -9,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore'
 import { signOut } from 'firebase/auth'
 import './App.css'
@@ -42,11 +44,16 @@ function App({ user }) {
   )
 
   const tasksByColumn = useMemo(() => {
-    return tasks.reduce((groups, task) => {
-      groups[task.status] = groups[task.status] || []
-      groups[task.status].push(task)
-      return groups
+    const groups = tasks.reduce((acc, task) => {
+      acc[task.status] = acc[task.status] || []
+      acc[task.status].push(task)
+      return acc
     }, {})
+    // Sort each column by order
+    Object.keys(groups).forEach((status) => {
+      groups[status].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    })
+    return groups
   }, [tasks])
 
   const resetForm = () => {
@@ -58,36 +65,87 @@ function App({ user }) {
     event.preventDefault()
     if (!title.trim()) return
 
+    // Get current max order in 'todo' column to add new task at the end
+    const todoTasks = tasksByColumn['todo'] || []
+    const maxOrder = todoTasks.length > 0 
+      ? Math.max(...todoTasks.map(t => t.order ?? 0)) + 1 
+      : 0
+
     try {
-    await addDoc(tasksRef, {
-      title: title.trim(),
-      note: note.trim(),
-      status: 'todo',
-      userId,
-      createdAt: serverTimestamp(),
-    })
-    resetForm()
+      await addDoc(tasksRef, {
+        title: title.trim(),
+        note: note.trim(),
+        status: 'todo',
+        order: maxOrder,
+        userId,
+        createdAt: serverTimestamp(),
+      })
+      resetForm()
     } catch (error) {
       console.error('Error adding task', error)
       alert('Could not add task. Check console for details.')
     }
   }
 
-  const handleDrop = (event, status) => {
+  const handleDelete = async (taskId) => {
+    try {
+      await deleteDoc(doc(tasksRef, taskId))
+    } catch (error) {
+      console.error('Error deleting task', error)
+      alert('Could not delete task. Check console for details.')
+    }
+  }
+
+  const handleDrop = async (event, status, dropIndex = null) => {
     event.preventDefault()
     const taskId = event.dataTransfer.getData('text/plain')
     if (!taskId) return
 
     const task = tasks.find((t) => t.id === taskId)
-    if (!task || task.status === status) {
+    if (!task) {
       setDraggingId(null)
       setActiveColumn(null)
       return
     }
 
-    updateDoc(doc(db, 'users', userId, 'tasks', taskId), {
-      status,
-    }).catch((error) => console.error('Error updating task status', error))
+    const columnTasks = tasksByColumn[status] || []
+    
+    try {
+      if (task.status === status && dropIndex !== null) {
+        // Reordering within the same column
+        const currentIndex = columnTasks.findIndex(t => t.id === taskId)
+        if (currentIndex === dropIndex) {
+          setDraggingId(null)
+          setActiveColumn(null)
+          return
+        }
+
+        // Create new order for all tasks in the column
+        const reorderedTasks = [...columnTasks]
+        const [movedTask] = reorderedTasks.splice(currentIndex, 1)
+        reorderedTasks.splice(dropIndex, 0, movedTask)
+
+        // Batch update all orders
+        const batch = writeBatch(db)
+        reorderedTasks.forEach((t, index) => {
+          batch.update(doc(tasksRef, t.id), { order: index })
+        })
+        await batch.commit()
+      } else if (task.status !== status) {
+        // Moving to a different column
+        const newOrder = columnTasks.length > 0
+          ? Math.max(...columnTasks.map(t => t.order ?? 0)) + 1
+          : 0
+
+        await updateDoc(doc(tasksRef, taskId), {
+          status,
+          order: newOrder,
+        })
+      }
+    } catch (error) {
+      console.error('Error updating task', error)
+    }
+
     setDraggingId(null)
     setActiveColumn(null)
   }
@@ -124,7 +182,7 @@ function App({ user }) {
   }, [userCollection, userId])
 
   useEffect(() => {
-    const q = query(tasksRef, orderBy('createdAt', 'desc'))
+    const q = query(tasksRef, orderBy('order', 'asc'))
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const nextTasks = snapshot.docs.map((docSnap) => {
         const data = docSnap.data()
@@ -133,6 +191,7 @@ function App({ user }) {
           title: data.title || '',
           note: data.note || '',
           status: data.status || 'todo',
+          order: data.order ?? 0,
           createdAt: data.createdAt,
         }
       })
@@ -231,7 +290,7 @@ function App({ user }) {
                 {columnTasks.length === 0 && (
                   <p className="empty">Drop a task here</p>
                 )}
-                {columnTasks.map((task) => (
+                {columnTasks.map((task, index) => (
                   <div
                     key={task.id}
                     className={`card ${
@@ -240,8 +299,23 @@ function App({ user }) {
                     draggable
                     onDragStart={(event) => handleDragStart(event, task.id)}
                     onDragEnd={handleDragEnd}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.stopPropagation()
+                      handleDrop(event, column.id, index)
+                    }}
                   >
-                    <div className="chip">Task</div>
+                    <div className="card__header">
+                      <div className="chip">Task</div>
+                      <button
+                        type="button"
+                        className="delete-btn"
+                        onClick={() => handleDelete(task.id)}
+                        aria-label="Delete task"
+                      >
+                        ×
+                      </button>
+                    </div>
                     <h3>{task.title}</h3>
                     {task.note ? <p className="note">{task.note}</p> : null}
                   </div>
